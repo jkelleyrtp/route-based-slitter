@@ -1,0 +1,19 @@
+[package]
+name = "wasm-splitter"
+version = "0.1.0"
+authors = ["Jonathan Kelley <jkelleyrtp@gmail.com>"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+
+dioxus = { version = "0.5", features = ["desktop", "router"] }
+
+# Debug
+log = "0.4.19"
+dioxus-logger = "0.4.1"
+walrus = { version = "0.20.3", features = ["parallel"] }
+regex = "1.10.4"
+rayon = "1.10.0"
+failure = "0.1.8"
