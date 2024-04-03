@@ -6,9 +6,22 @@ use log::LevelFilter;
 use rayon::prelude::*;
 use walrus::{ir::VisitorMut, ImportKind, InstrLocId, LocalId, Module};
 
+// todo: I want to make a lil explorer tool that lets me mess with the wasm binary
+//
+// Scripting is fun but I think we can get pretty far with a lil ui
 fn main() {
     dioxus_logger::init(LevelFilter::Info).expect("failed to init logger");
 
+    dioxus::launch(App);
+}
+
+#[component]
+fn App() -> Element {
+    rsx! { "hello world" }
+}
+
+#[test]
+fn load_binary() {
     let contents = include_bytes!("../docsite_bg.wasm");
 
     let routes = [
