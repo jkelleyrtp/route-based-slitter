@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use dioxus::prelude::{dioxus_elements::mo, *};
+use dioxus::prelude::{dioxus_elements::mo, dioxus_router::routable, *};
 use failure::ResultExt;
 use log::LevelFilter;
 use rayon::prelude::*;
@@ -20,43 +20,68 @@ fn App() -> Element {
     rsx! { "hello world" }
 }
 
+static CONTENTS: &[u8] = include_bytes!("../docsite_bg.wasm");
+const ROUTES: [&str; 18] = [
+    "Homepage",
+    "Awesome",
+    "Deploy",
+    "Tutorial",
+    "BlogList",
+    "PostRelease050",
+    "PostTemplate",
+    "PostFulltime",
+    "PostRelease040",
+    "PostRelease030",
+    "PostRelease020",
+    "PostRelease010",
+    "Learn",
+    "Docs",
+    "DocsO3",
+    "DocsO4",
+    "Docs",
+    "Err404",
+];
+#[test]
+fn snip_one() {
+    let out = snip_route(CONTENTS, vec!["Homepage".to_string()]);
+    print_saved(out.len(), CONTENTS.len(), "Homepage");
+}
+
+/// Split the wasm binary, cutting out *all* but one function at a time.
+#[test]
+fn properly_split() {
+    for route in ROUTES {
+        let isolated = ROUTES
+            .iter()
+            .filter(|f| **f != route)
+            .map(|f| f.to_string())
+            .collect::<Vec<_>>();
+
+        let out = snip_route(CONTENTS, isolated);
+        print_saved(out.len(), CONTENTS.len(), route);
+    }
+}
+
 #[test]
 fn load_binary() {
-    let contents = include_bytes!("../docsite_bg.wasm");
-
-    let routes = [
-        "Homepage",
-        "Awesome",
-        "Deploy",
-        "Tutorial",
-        "BlogList",
-        "PostRelease050",
-        "PostTemplate",
-        "PostFulltime",
-        "PostRelease040",
-        "PostRelease030",
-        "PostRelease020",
-        "PostRelease010",
-        "Learn",
-        "Docs",
-        "DocsO3",
-        "DocsO4",
-        "Docs",
-        "Err404",
-    ];
-    let initial_bytes = contents.len();
+    let initial_bytes = CONTENTS.len();
     println!("{} bytes", initial_bytes);
 
+    let mut saved = 0;
+
     // Do a per-route split
-    for route in routes {
-        let out = snip_route(contents, vec![route.to_string()]);
-        print_saved(out, initial_bytes, route);
+    for route in ROUTES {
+        let out = snip_route(CONTENTS, vec![route.to_string()]);
+        print_saved(out.len(), initial_bytes, route);
+        saved += (initial_bytes - out.len());
     }
 
     // Now do a split with every route enabled
-    let out = snip_route(contents, routes.iter().map(|f| f.to_string()).collect());
+    let out = snip_route(CONTENTS, ROUTES.iter().map(|f| f.to_string()).collect());
 
-    print_saved(out, initial_bytes, "all")
+    // print_saved(saved, initial_bytes, "all-individual");
+    println!("Saved {} bytes", saved);
+    print_saved(out.len(), initial_bytes, "all")
 
     // std::fs::write("docsite_out.wasm", &o);
 
@@ -64,10 +89,9 @@ fn load_binary() {
     // include_bytes!("../harnesses/web-harness/dist/assets/dioxus/web-harness_bg.wasm");
 }
 
-fn print_saved(out: Vec<u8>, initial_bytes: usize, route: &str) {
-    let out_bytes = out.len();
+fn print_saved(out_len: usize, initial_bytes: usize, route: &str) {
     // println!("{} bytes", out_bytes);
-    let saved = initial_bytes - out_bytes;
+    let saved = initial_bytes - out_len;
     println!(
         "{route}: {} bytes, or {:.3} %",
         saved,
@@ -85,19 +109,13 @@ fn snip_route(
 ) -> Vec<u8> {
     let mut config = walrus::ModuleConfig::new();
 
-    // let mut routes = HashMap::new();
-    // let route_names = vec!["Home", "Blog"];
-
-    // // Load a variant of each binary for each route
-    // for route in route_names {
-    //     let mut module = config.parse(contents).unwrap();
-    //     routes.insert(route.to_string(), module);
-    // }
-
     let mut module = config.parse(contents).unwrap();
+
+    // let props_of_functions = names.iter().map(|name| format!("{name}Props")).collect();
 
     let opts = Options {
         functions: names,
+        // patterns: props_of_functions,
         ..Options::default()
     };
 
@@ -299,6 +317,8 @@ fn snip_table_elements(module: &mut walrus::Module, to_snip: &HashSet<walrus::Fu
         builder.func_body().unreachable();
         builder.finish(locals, funcs)
     };
+
+    // println!("Looking for functions {:?}", to_snip);
 
     for t in module.tables.iter_mut() {
         // println!("table {:?}", t);
